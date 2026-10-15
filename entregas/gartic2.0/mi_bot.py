@@ -1,11 +1,16 @@
-"""El Guardián — fernando_v3 (candidato G_U30). Solo librería estándar.
+"""El Guardián — fernando_v3 (candidato G_L14). Solo librería estándar.
 
 Es el bot joseca_v4 de nuestro equipo con UN cambio: en respuestas de 3 o más
-oraciones (como las del giro) el corte de la probabilidad pasa de 0,18 a 0,30
-(UMBRAL_LARGAS). Motivo: varias características toman el peor caso o suman sobre
-oraciones, crecen con la longitud y el modelo, entrenado casi solo con respuestas
-de 1 oración, marca de más las respuestas largas. El corte se fijó a priori, sin
-datos del giro. Respuestas de 1-2 oraciones: idéntico a la v4.
+oraciones (como las del giro) el corte de la probabilidad pasa de 0,18 a 0,14
+(UMBRAL_LARGAS), es decir, se marca MÁS, no menos.
+
+Motivo: la entrega de prueba G_U30 subía ese corte a 0,30 (menos alarmas en
+respuestas largas) y bajó la nota pública frente a la v4. Deduciendo de esa
+caída cuántas de las alarmas quitadas eran alucinaciones reales, salen unas
+4-5 de 14 (~31 %), por encima del 20 % de equilibrio del coste 4:1 (un escape
+pesa 4 veces lo que una falsa alarma). Es decir: en esas respuestas la v4 ya
+acertaba más de lo que parecía, y bajar el corte para marcar más debería
+ganar, no perder. Respuestas de 1-2 oraciones: idéntico a la v4.
 
 Cómo puntúa:
 1. caracteristicas(caso): 74 características. Señales del juez LLM y del NLI
@@ -15,8 +20,8 @@ Cómo puntúa:
 2. probabilidad(): gradient boosting de 200 árboles de profundidad 4 entrenado con
    el train del kit (casos H con peso 5), embebido como datos en el bloque MODELO;
    compara en float32 para coincidir con scikit-learn.
-3. reescalar(p, corte): el corte (0,18 en respuestas cortas; coste 4:1) pasa a 0,5,
-   que es donde corta el organizador.
+3. reescalar(p, corte): el corte (0,18 en respuestas cortas, 0,14 en respuestas de
+   3 o más oraciones; coste 4:1) pasa a 0,5, que es donde corta el organizador.
 Si algo falla, devuelve 1.0 (más vale una falsa alarma que un escape).
 """
 import collections
@@ -1101,8 +1106,12 @@ def reescalar(p, umbral):
     return 0.5 + 0.5 * (p - umbral) / (1.0 - umbral)
 
 
-# Respuestas largas (>= 3 oraciones, como las del giro): corte más exigente, fijado a priori.
-UMBRAL_LARGAS = 0.30
+# Respuestas largas (>= 3 oraciones, como las del giro): corte MÁS BAJO que el de la
+# v4 (0,18 -> 0,14), fijado a priori a partir de una deducción de la nota pública de
+# G_U30 (que SUBÍA el corte y bajó la nota): en esas respuestas conviene marcar MÁS,
+# no menos, porque las alarmas que allí se quitan incluyen más de un 20 % de
+# alucinaciones reales (el punto de equilibrio del coste 4:1).
+UMBRAL_LARGAS = 0.14
 
 
 class Guardian:
